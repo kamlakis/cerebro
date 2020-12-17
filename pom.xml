@@ -126,5 +126,6 @@
         <module>cerebro-framework</module>
         <module>cerebro-test</module>
         <module>cerebro-socket</module>
+        <module>cerebro-commons</module>
     </modules>
 </project>

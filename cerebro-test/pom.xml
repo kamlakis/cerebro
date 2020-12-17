@@ -13,6 +13,20 @@
 	<name>${project.groupId}:${project.artifactId}</name>
  
 
+	<dependencies>
+		<dependency>
+			<groupId>net.lakis</groupId>
+			<artifactId>cerebro-socket</artifactId>
+			<version>1.0.1</version>
+
+		</dependency>
+		<dependency>
+			<groupId>net.lakis</groupId>
+			<artifactId>cerebro-commons</artifactId>
+			<version>1.0.1</version>
+
+		</dependency>
+	</dependencies>
 
 
 </project>
