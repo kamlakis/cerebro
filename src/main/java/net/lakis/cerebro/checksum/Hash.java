@@ -21,10 +21,6 @@ public class Hash {
      * Returns an MD5 MessageDigest.
      *
      * @return An MD5 digest instance.
-     * @throws IllegalArgumentException
-     *             when a {@link NoSuchAlgorithmException} is caught, which should never happen because MD5 is a
-     *             built-in algorithm
-     * @see MessageDigestAlgorithms#MD5
      */
     public static MessageDigest getMd5Digest() {
     	return  MD5;
@@ -40,7 +36,6 @@ public class Hash {
      *            >Appendix A in the Java Cryptography Architecture Reference Guide</a> for information about standard
      *            algorithm names.
      * @return A digest instance.
-     * @see MessageDigest#getInstance(String)
      * @throws IllegalArgumentException
      *             when a {@link NoSuchAlgorithmException} is caught.
      */
@@ -70,7 +65,7 @@ public class Hash {
      * Calculates the MD5 digest and returns the value as a 16 element {@code byte[]}.
      *
      * @param data
-     *            Data to digest; converted to bytes using {@link StringUtils#getBytesUtf8(String)}
+     *            Data to digest; converted to bytes 
      * @return MD5 digest
      */
     public static byte[] md5(final String data) {

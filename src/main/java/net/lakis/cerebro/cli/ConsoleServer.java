@@ -1,6 +1,8 @@
 package net.lakis.cerebro.cli;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -46,29 +48,30 @@ public class ConsoleServer {
 
 	private String getOptionsResponse;
 	private Map<String, ConsoleHandler> functionsMap;
+	private String listOptionsResponse;
 
 	@ExecuteLast
 	public void onStart() throws IOException {
 		int port = appConfig.getAsInt("console.port");
-		if (port <= 0) {
-			log.info("invalid console.port in app.properties, disabling console server.");
-			return;
-		}
-
 		this.fetchFunctions();
+		if (port <= 0) {
+			log.info("invalid console.port in app.properties, running in foreground mode.");
+			this.worker = WorkersFactory.createWorker(this::foregroundWork);
+		} else {
 
-		InetSocketAddress inetSocketAddress = new InetSocketAddress(port);
+			InetSocketAddress inetSocketAddress = new InetSocketAddress(port);
 
-		this.selector = Selector.open();
+			this.selector = Selector.open();
 
-		this.serverSocketChannel = ServerSocketChannel.open();
-		this.serverSocketChannel.configureBlocking(false);
-		this.serverSocketChannel.bind(inetSocketAddress);
-		this.serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+			this.serverSocketChannel = ServerSocketChannel.open();
+			this.serverSocketChannel.configureBlocking(false);
+			this.serverSocketChannel.bind(inetSocketAddress);
+			this.serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-		this.worker = WorkersFactory.createWorker(this::work);
+			this.worker = WorkersFactory.createWorker(this::work);
+			log.info("console started on port {}", port);
+		}
 		this.worker.start();
-		log.info("console started on port {}", port);
 
 	}
 
@@ -122,16 +125,33 @@ public class ConsoleServer {
 
 	}
 
+	public void foregroundWork() throws Exception {
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String line = reader.readLine();
+		this.handle(new ConsoleWriter(null), line);
+	}
+
 	private void onRead(ConsoleWriter consoleWriter, byte[] array) throws IOException {
 		try (ByteArrayInputStream baos = new ByteArrayInputStream(array)) {
 			while (baos.hasMoreData()) {
 				String message = baos.readPString().trim();
 				if (message.equalsIgnoreCase("getoptions"))
 					this.getOptions(consoleWriter);
+				else if (message.equalsIgnoreCase("listoptions"))
+					this.listOptions(consoleWriter);
+
 				else
 					this.handle(consoleWriter, message);
 			}
 		}
+
+	}
+
+	private void listOptions(ConsoleWriter consoleWriter) {
+		if (listOptionsResponse == null)
+			generateListOptionsResponse();
+
+		consoleWriter.write(listOptionsResponse);
 
 	}
 
@@ -141,6 +161,19 @@ public class ConsoleServer {
 
 		consoleWriter.write(String.format("getoptions%s", getOptionsResponse));
 
+	}
+
+	private void generateListOptionsResponse() {
+		StringBuilder sb = new StringBuilder("listoptions");
+		for (Entry<String, ConsoleHandler> entry : functionsMap.entrySet()) {
+			sb.append("|")//
+					.append(entry.getKey())//
+					.append(":")//
+					.append(String.join(",", entry.getValue().getkeys()));
+
+		}
+
+		this.listOptionsResponse = sb.toString();
 	}
 
 	private void generateGetOptionsResponse() {

@@ -1,5 +1,6 @@
 package net.lakis.cerebro.web;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
@@ -32,6 +33,7 @@ import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.mvc.freemarker.FreemarkerMvcFeature;
 
+import freemarker.cache.FileTemplateLoader;
 import lombok.extern.log4j.Log4j2;
 import net.lakis.cerebro.Cerebro;
 import net.lakis.cerebro.annotations.ConsoleKey;
@@ -52,7 +54,7 @@ public class WebServer {
 	private @InjectDepency WebJsonProvider jsonProvider;
 	private @InjectDepency("WebResource") Set<Object> resources;
 	private @InjectDepency AbstractSessionProvider<?> sessionProvider;
-	
+
 	private HttpServer server;
 
 	@ConsoleKey("reload")
@@ -188,15 +190,19 @@ public class WebServer {
 						bind(entry.getValue()).to(entry.getKey());
 				}
 			};
-
+			
+			String path =  cerebro.getFilePath("ftl");
+			if(path.charAt(1) == ':')
+				path = path.substring(2);
+			
 			final ResourceConfig rc = new ResourceConfig(jerseyServlets.keySet())//
 					.register(binder).register(JacksonFeature.class)//
 					.register(jsonProvider)//
-					.property(FreemarkerMvcFeature.TEMPLATE_BASE_PATH, cerebro.getFilePath("ftl"))// "templates/freemarker")
-					.register(FreemarkerMvcFeature.class)
-			;//
+					.property(FreemarkerMvcFeature.TEMPLATE_BASE_PATH, path/* cerebro.getFilePath("ftl") */)// "templates/freemarker")
+//					.register(FreemarkerMvcFeature.TEMPLATE_OBJECT_FACTORY, new FileTemplateLoader(new File(cerebro.getFilePath("ftl"))))
+					.register(FreemarkerMvcFeature.class);//
 
-			if(sessionProvider != null) {
+			if (sessionProvider != null) {
 				rc.register(new SessionsFilter(sessionProvider));
 			}
 			if (resources.size() > 0) {

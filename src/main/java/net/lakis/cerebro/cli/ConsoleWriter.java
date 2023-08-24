@@ -12,9 +12,15 @@ public class ConsoleWriter {
 	public ConsoleWriter(SocketChannel socket) {
 		this.socket = socket;
 	}
+	
+	
 
 	public synchronized void write(String message) {
 		try {
+			if(socket == null) {
+				System.out.println(message);
+				return;
+			}
 			try(ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 				baos.writePString(message);
 				

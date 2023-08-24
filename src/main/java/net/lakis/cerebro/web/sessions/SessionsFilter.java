@@ -2,6 +2,7 @@ package net.lakis.cerebro.web.sessions;
 
 import java.io.IOException;
 
+import javax.annotation.Priority;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ContainerResponseContext;
@@ -12,6 +13,7 @@ import javax.ws.rs.core.Cookie;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.NewCookie;
 
+@Priority(1)
 public class SessionsFilter implements ContainerResponseFilter, ContainerRequestFilter {
 	public static final String SESSION_KEY = "asd123zz";
 

@@ -40,7 +40,7 @@ public class StaticFileServlet extends StaticHttpHandler   {
 	}
 	
 	protected boolean handle(final String uri, final Request request, final Response response) throws Exception {
-		log.debug("recieved on StaticFileServlet {}", uri);
+		log.trace("recieved on StaticFileServlet {}", uri);
 		File resource = new File(rootPath, URLDecoder.decode(uri, "UTF-8"));
 
 		if (resource.isDirectory()) {

@@ -30,6 +30,7 @@ import org.reflections.Reflections;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
+import net.lakis.cerebro.annotations.Config;
 import net.lakis.cerebro.annotations.ConsoleKey;
 import net.lakis.cerebro.annotations.ExecuteFirst;
 import net.lakis.cerebro.annotations.ExecuteLast;
@@ -38,9 +39,11 @@ import net.lakis.cerebro.annotations.ExecuteThird;
 import net.lakis.cerebro.annotations.InjectDepency;
 import net.lakis.cerebro.annotations.Service;
 import net.lakis.cerebro.annotations.ServletPath;
+import net.lakis.cerebro.cli.ConsoleServer;
 import net.lakis.cerebro.config.AppConfig;
 import net.lakis.cerebro.config.ConfigLoader;
 import net.lakis.cerebro.jobs.NamedThreadFactory;
+import net.lakis.cerebro.log.Log4j2Handler;
 import net.lakis.cerebro.web.WebJsonProvider;
 import net.lakis.cerebro.web.WebServer;
 import net.lakis.cerebro.web.config.WebServerConfig;
@@ -126,13 +129,15 @@ public class Cerebro implements Runnable {
 			this.reflections = new Reflections(lookupPackage);
 
 			injectMap.put(Cerebro.class, this);
+			loadClass(Log4j2Handler.class, services);
+			loadClass(ConsoleServer.class, services);
 			loadClass(AppConfig.class, configs);
 			loadClass(WebServerConfig.class, configs);
 			loadClass(ConfigLoader.class, consoleKeys);
 			loadClass(WebJsonProvider.class, services);
 			loadClass(WebServer.class, consoleKeys);
 
-			Set<Class<?>> configClasses = reflections.getTypesAnnotatedWith(ServletPath.class);
+			Set<Class<?>> configClasses = reflections.getTypesAnnotatedWith(Config.class);
 			configClasses.forEach(c -> loadClass(c, configs));
 
 			Set<Class<?>> nativeServletsClasses = reflections.getTypesAnnotatedWith(ServletPath.class);
@@ -159,7 +164,7 @@ public class Cerebro implements Runnable {
 	}
 
 	private void executeMethods() throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-		getDepenecy(ConfigLoader.class).reloadConfig();
+		getDependency(ConfigLoader.class).reloadConfig();
 
 		for (Object obj : injectMap.values()) {
 			for (Method method : obj.getClass().getMethods()) {
@@ -230,7 +235,7 @@ public class Cerebro implements Runnable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> T getDepenecy(Class<T> classOfT) {
+	public <T> T getDependency(Class<T> classOfT) {
 		return (T) injectMap.get(classOfT);
 	}
 
