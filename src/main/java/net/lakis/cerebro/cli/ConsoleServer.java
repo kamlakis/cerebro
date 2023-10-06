@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -114,7 +115,8 @@ public class ConsoleServer {
 					sc.close();
 				} else if (bytesRead > 0) {
 
-					bb.flip();
+					((Buffer)bb).flip();
+				//	bb.flip();
 					byte[] data = new byte[bytesRead];
 					bb.get(data);
 

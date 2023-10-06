@@ -2,11 +2,14 @@
 package net.lakis.cerebro.config;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -18,8 +21,10 @@ import org.apache.commons.lang.StringUtils;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -31,6 +36,7 @@ import net.lakis.cerebro.annotations.Config;
 import net.lakis.cerebro.annotations.ConsoleKey;
 import net.lakis.cerebro.annotations.InjectDepency;
 import net.lakis.cerebro.collections.VariablesStore;
+import net.lakis.cerebro.lang.Strings;
 import net.lakis.cerebro.web.config.ServletNetworkListener;
 import net.lakis.cerebro.web.config.WebServerConfig;
 
@@ -48,7 +54,7 @@ public class ConfigLoader {
 	void loadJsonMapper() {
 		this.objectMapper = new ObjectMapper();
 		this.objectMapper.setSerializationInclusion(Include.ALWAYS);
-		this.objectMapper.disable(SerializationFeature.INDENT_OUTPUT);
+		this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
 
 		this.objectMapper.disable(MapperFeature.USE_GETTERS_AS_SETTERS);
 
@@ -97,19 +103,19 @@ public class ConfigLoader {
 		return sb.toString();
 
 	}
-	
+
 	@ConsoleKey("printJson")
 	public String printJson() {
-		
+
 		Map<String, Object> map = new HashMap<>();
-		cerebro.getConfigs().forEach((c,o) -> {
+		cerebro.getConfigs().forEach((c, o) -> {
 			Config config = c.getAnnotation(Config.class);
-			if(config == null)
+			if (config == null)
 				map.put(c.getName(), o);
-			else 
-				map.put(config.value(),o);
+			else
+				map.put(config.value(), o);
 		});
-				
+
 		return new GsonBuilder().setPrettyPrinting().create().toJson(map);
 
 	}
@@ -120,25 +126,22 @@ public class ConfigLoader {
 			log.error("unsupported file format: {}", file);
 			return false;
 		}
-		
+
 		/*
-		URL url = ConfigLoader.class.getClassLoader().getResource(file);
-		if (url == null) {
-			if (obj instanceof WebServerConfig)
-				return loadWebServerConfigFromApp((WebServerConfig) obj);
-
-			return false;
-		}
-		byte[] content = Files.readAllBytes(Paths.get(url.toURI()));
-*/
+		 * URL url = ConfigLoader.class.getClassLoader().getResource(file); if (url ==
+		 * null) { if (obj instanceof WebServerConfig) return
+		 * loadWebServerConfigFromApp((WebServerConfig) obj);
+		 * 
+		 * return false; } byte[] content = Files.readAllBytes(Paths.get(url.toURI()));
+		 */
 		File fi = new File(cerebro.getFilePath("conf", file));
-		if(!fi.exists()) {
+		if (!fi.exists()) {
 			if (obj instanceof WebServerConfig)
 				return loadWebServerConfigFromApp((WebServerConfig) obj);
 
 			return false;
 		}
-		
+
 		byte[] content = Files.readAllBytes(fi.toPath());
 		String str;
 		if (format)
@@ -219,6 +222,11 @@ public class ConfigLoader {
 			if (field.getType() == String.class) {
 
 				field.set(obj, value);
+
+			} else if (field.getType() == String[].class) {
+
+				String[] array1 = StringUtils.split(value, '|');
+				field.set(obj, array1);
 
 			} else if (field.getType() == char.class) {
 
@@ -315,4 +323,118 @@ public class ConfigLoader {
 		return false;
 	}
 
+	public void save(Object obj) throws Exception {
+		Config config = obj.getClass().getAnnotation(Config.class);
+		if (config == null) {
+			throw new Exception("unable to save " + obj.getClass().getName() + " no config anotation");
+		}
+
+		File file = new File(cerebro.getFilePath("conf", config.value()));
+		File copy = new File(cerebro.getFilePath("conf", config.value())
+				+ DateTimeFormatter.ofPattern(".uuuuMMdd.HHmmss").format(LocalDateTime.now()));
+		com.google.common.io.Files.copy(file, copy);
+
+		if (config.value().endsWith(".json")) {
+			saveJson(obj, file);
+		} else {
+			saveProperties(obj, file);
+		}
+	}
+
+	private void saveProperties(Object obj, File file)
+			throws IOException, IllegalArgumentException, IllegalAccessException {
+		Properties props;
+		if (obj instanceof Properties) {
+			props = ((Properties) obj);
+		} else {
+
+			props = new Properties();
+
+			if (obj instanceof VariablesStore) {
+				VariablesStore vs = (VariablesStore) obj;
+
+				for (Entry<String, String> entry : vs.entrySet()) {
+					props.put(entry.getKey().toString(), entry.getValue().toString());
+				}
+			} else {
+				loadObjectIntoProps(obj, props);
+			}
+		}
+
+		try (FileWriter writer = new FileWriter(file)) {
+			props.store(writer, null);
+		}
+	}
+
+	private void loadObjectIntoProps(Object obj, Properties props)
+			throws IllegalArgumentException, IllegalAccessException {
+		String value;
+		for (Field field : obj.getClass().getDeclaredFields()) {
+
+			/*
+			 * String value = (String) props.get(field.getName()); if (value == null)
+			 * continue; value = value.trim(); if (value.length() == 0) continue;
+			 */
+			field.setAccessible(true);
+			if (field.getType() == String.class) {
+				value = (String) field.get(obj);
+			}else if (field.getType() == String[].class) {
+				String[] v = (String[]) field.get(obj);
+				value = Strings.join('|', v);			
+			} else if (field.getType() == char.class) {
+				char v = (char) field.get(obj);
+				value = String.valueOf(v);
+			} else if (field.getType() == boolean.class) {
+				boolean v = (boolean) field.get(obj);
+
+				value = String.valueOf(v);
+
+			} else if (field.getType() == byte.class) {
+				byte v = (byte) field.get(obj);
+				value = String.valueOf(v);
+			} else if (field.getType() == byte[].class) {
+				byte[] v = (byte[]) field.get(obj);
+				value = Strings.join('|', v);
+			} else if (field.getType() == short.class) {
+				short v = (short) field.get(obj);
+				value = String.valueOf(v);
+			} else if (field.getType() == short[].class) {
+				short[] v = (short[]) field.get(obj);
+				value = Strings.join('|', v);
+			} else if (field.getType() == int.class) {
+				int v = (int) field.get(obj);
+				value = String.valueOf(v);
+			} else if (field.getType() == int[].class) {
+				int[] v = (int[]) field.get(obj);
+				value = Strings.join('|', v);
+			} else if (field.getType() == long.class) {
+				long v = (long) field.get(obj);
+				value = String.valueOf(v);
+			} else if (field.getType() == long[].class) {
+				long[] v = (long[]) field.get(obj);
+				value = Strings.join('|', v);
+			} else if (field.getType() == float.class) {
+				float v = (float) field.get(obj);
+				value = String.valueOf(v);
+			} else if (field.getType() == float[].class) {
+				float[] v = (float[]) field.get(obj);
+				value = Strings.join('|', v);
+			} else if (field.getType() == double.class) {
+				double v = (double) field.get(obj);
+				value = String.valueOf(v);
+			} else if (field.getType() == double[].class) {
+				double[] v = (double[]) field.get(obj);
+				value = Strings.join('|', v);
+			} else {
+				continue;
+			}
+			props.put(field.getName(), value);
+
+		}
+	}
+
+	private void saveJson(Object obj, File file) throws JsonGenerationException, JsonMappingException, IOException {
+		objectMapper.writeValue(file, obj);
+
+	}
 }
