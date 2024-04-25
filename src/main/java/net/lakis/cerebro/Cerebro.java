@@ -22,6 +22,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.util.Strings;
@@ -70,6 +71,7 @@ public class Cerebro implements Runnable {
 
 	private @Getter HashMap<Class<?>, Object> consoleKeys;
 	private ScheduledThreadPoolExecutor scheduler;
+	private int threads;
 
 	public static void main(String[] args) {
 		Cerebro cerebro = new Cerebro();
@@ -94,6 +96,15 @@ public class Cerebro implements Runnable {
 					props.load(input);
 
 					lookupPackage = props.getProperty("package");
+
+					String obj = props.getProperty("threads");
+					if (StringUtils.isNotBlank(obj)) {
+						obj = obj.replaceAll("[^\\-0-9]", "");
+						if (StringUtils.isNotBlank(obj)) {
+							threads = Integer.parseInt(obj);
+						}
+					}
+
 				}
 
 			} catch (IOException e) {
@@ -125,32 +136,35 @@ public class Cerebro implements Runnable {
 			this.jerseyServlets = new HashMap<Class<?>, Object>();
 			this.namedServices = new HashMap<String, Set<Object>>();
 
-			Reflections.log = null;// disable log warnings on classes search
+			log.info("loading lookup package {}", lookupPackage);
+			// Reflections.log = null;// disable log warnings on classes search
 			this.reflections = new Reflections(lookupPackage);
 
 			injectMap.put(Cerebro.class, this);
-			loadClass(Log4j2Handler.class, services);
-			loadClass(ConsoleServer.class, services);
-			loadClass(AppConfig.class, configs);
-			loadClass(WebServerConfig.class, configs);
-			loadClass(ConfigLoader.class, consoleKeys);
-			loadClass(WebJsonProvider.class, services);
-			loadClass(WebServer.class, consoleKeys);
+			consoleKeys.put(Cerebro.class, this);
+
+			loadClass(Log4j2Handler.class, services, "service");
+			loadClass(ConsoleServer.class, services, "service");
+			loadClass(AppConfig.class, configs, "config");
+			loadClass(WebServerConfig.class, configs, "config");
+			loadClass(ConfigLoader.class, consoleKeys, "console");
+			loadClass(WebJsonProvider.class, services, "service");
+			loadClass(WebServer.class, consoleKeys, "service");
 
 			Set<Class<?>> configClasses = reflections.getTypesAnnotatedWith(Config.class);
-			configClasses.forEach(c -> loadClass(c, configs));
+			configClasses.forEach(c -> loadClass(c, configs, "config"));
 
 			Set<Class<?>> nativeServletsClasses = reflections.getTypesAnnotatedWith(ServletPath.class);
-			nativeServletsClasses.forEach(c -> loadClass(c, nativeServlets));
+			nativeServletsClasses.forEach(c -> loadClass(c, nativeServlets, "servlet"));
 
 			Set<Class<?>> jerseyServletsClasses = reflections.getTypesAnnotatedWith(javax.ws.rs.Path.class);
-			jerseyServletsClasses.forEach(c -> loadClass(c, jerseyServlets));
+			jerseyServletsClasses.forEach(c -> loadClass(c, jerseyServlets, "servlet"));
 
 			Set<Class<?>> ServicesClasses = reflections.getTypesAnnotatedWith(Service.class);
-			ServicesClasses.forEach(c -> loadClass(c, services));
+			ServicesClasses.forEach(c -> loadClass(c, services, "service"));
 
 			Set<Class<?>> consoleKeysClasses = reflections.getTypesAnnotatedWith(ConsoleKey.class);
-			consoleKeysClasses.forEach(c -> loadClass(c, consoleKeys));
+			consoleKeysClasses.forEach(c -> loadClass(c, consoleKeys, "console"));
 
 			this.injectDependencies();
 			this.startThreads();
@@ -239,8 +253,9 @@ public class Cerebro implements Runnable {
 		return (T) injectMap.get(classOfT);
 	}
 
-	private void loadClass(Class<?> clazz, HashMap<Class<?>, Object> map) {
+	private void loadClass(Class<?> clazz, HashMap<Class<?>, Object> map, String objectType) {
 		try {
+			log.info("loading {} {}", objectType, clazz.getName());
 			Object obj = injectMap.get(clazz);
 			if (obj == null) {
 				obj = clazz.getConstructor().newInstance();
@@ -265,7 +280,6 @@ public class Cerebro implements Runnable {
 	}
 
 	private void startThreads() {
-		int threads = appConfig.getAsInt("threads");
 		if (threads > 0) {
 			this.scheduler = new ScheduledThreadPoolExecutor(threads, new NamedThreadFactory("cerebro"));
 		} else {

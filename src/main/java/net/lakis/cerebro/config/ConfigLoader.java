@@ -320,7 +320,7 @@ public class ConfigLoader {
 
 	private boolean loadJson(Object obj, String str) throws JsonProcessingException, IOException {
 		objectMapper.readerForUpdating(obj).readValue(str);
-		return false;
+		return true;
 	}
 
 	public void save(Object obj) throws Exception {

@@ -5,7 +5,7 @@
 
 	<groupId>net.lakis</groupId>
 	<artifactId>cerebro</artifactId>
-	<version>1.0.7</version>
+	<version>1.0.11</version>
 	<packaging>jar</packaging>
 
 
@@ -116,7 +116,14 @@
 			<artifactId>jersey-hk2</artifactId>
 			<version>2.26</version>
 
+			<exclusions>
+				<exclusion>
+					<groupId>org.javassist</groupId>
+					<artifactId>javassist</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
+		
 
 
 		<dependency>
@@ -189,11 +196,6 @@
 			<groupId>org.reflections</groupId>
 			<artifactId>reflections</artifactId>
 			<version>0.9.11</version>
-		</dependency>
-		<dependency>
-			<groupId>javassist</groupId>
-			<artifactId>javassist</artifactId>
-			<version>3.12.1.GA</version>
 		</dependency>
 
 
