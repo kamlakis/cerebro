@@ -1,6 +1,5 @@
 package net.lakis.cerebro.web;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
@@ -8,7 +7,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.jws.WebService;
-import javax.ws.rs.container.ContainerRequestFilter;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -33,7 +31,6 @@ import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.mvc.freemarker.FreemarkerMvcFeature;
 
-import freemarker.cache.FileTemplateLoader;
 import lombok.extern.log4j.Log4j2;
 import net.lakis.cerebro.Cerebro;
 import net.lakis.cerebro.annotations.ConsoleKey;

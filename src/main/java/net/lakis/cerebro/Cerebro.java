@@ -70,7 +70,7 @@ public class Cerebro implements Runnable {
 	private HashMap<String, Set<Object>> namedServices;
 
 	private @Getter HashMap<Class<?>, Object> consoleKeys;
-	private ScheduledThreadPoolExecutor scheduler;
+	private @Getter ScheduledThreadPoolExecutor scheduler;
 	private int threads;
 
 	public static void main(String[] args) {
